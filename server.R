@@ -24,7 +24,9 @@ shinyServer(function(input, output) {
     output$demographic.table <- DT::renderDataTable({
         dat.mini |>
             dplyr::group_by_at(input$demo.treemaps.var) |>
-            dplyr::summarize(Count = n())
+            dplyr::summarize(Count = n()) |>
+            dplyr::mutate(Percent = Count/sum(Count),
+                          Percent = round(Percent * 100, 2))
     }, options = list(paging = FALSE, dom = "t"), rownames = FALSE)
     
     
@@ -497,23 +499,66 @@ shinyServer(function(input, output) {
     
     
     
-    ### Well-being correlation matrices ----
+    ### Correlation matrices ----
     
-    # View correlation matrices for each time point
-    output$scale.correlation.heatmap.t1 <- renderPlot({
-        correlation.heatmap(corr.t1, p.mat.t1)
+    # get significance level input
+    significant.p.value <- reactive({
+        as.numeric(input$corr.matrix.sig.p.val)
     })
     
-    output$scale.correlation.heatmap.t2 <- renderPlot({
-        correlation.heatmap(corr.t2, p.mat.t2)
+    input_corr <- reactive({
+        input$corr.matrix.type
     })
     
-    output$scale.correlation.heatmap.t3 <- renderPlot({
-        correlation.heatmap(corr.t3, p.mat.t3)
+    output$correlation.heatmap.t1 <- renderPlot({
+        tmpt <- "t1"
+        input_name <- paste(input_corr(), tmpt)
+        idx_corr <- which(sapply(nested_corr, function(x) x$name == input_name))
+        idx_p <- which(sapply(nested_p, function(x) x$name == input_name))
+        
+        corr <- nested_corr[[idx_corr]][["data"]]
+        p.mat <- nested_p[[idx_p]][["data"]]
+        
+        correlation.heatmap(corr, p.mat, significant.p.value())
     })
     
-    output$scale.correlation.heatmap.t4 <- renderPlot({
-        correlation.heatmap(corr.t4, p.mat.t4)
+    output$correlation.heatmap.t2 <- renderPlot({
+        tmpt <- "t2"
+        input_name <- paste(input_corr(), tmpt)
+        idx_corr <- which(sapply(nested_corr, function(x) x$name == input_name))
+        idx_p <- which(sapply(nested_p, function(x) x$name == input_name))
+        
+        corr <- nested_corr[[idx_corr]][["data"]]
+        p.mat <- nested_p[[idx_p]][["data"]]
+        
+        correlation.heatmap(corr, p.mat, significant.p.value())
     })
+    
+    output$correlation.heatmap.t3 <- renderPlot({
+        tmpt <- "t3"
+        input_name <- paste(input_corr(), tmpt)
+        idx_corr <- which(sapply(nested_corr, function(x) x$name == input_name))
+        idx_p <- which(sapply(nested_p, function(x) x$name == input_name))
+        
+        corr <- nested_corr[[idx_corr]][["data"]]
+        p.mat <- nested_p[[idx_p]][["data"]]
+        
+        correlation.heatmap(corr, p.mat, significant.p.value())
+    })
+    
+    output$correlation.heatmap.t4 <- renderPlot({
+        tmpt <- "t4"
+        input_name <- paste(input_corr(), tmpt)
+        idx_corr <- which(sapply(nested_corr, function(x) x$name == input_name))
+        idx_p <- which(sapply(nested_p, function(x) x$name == input_name))
+        
+        corr <- nested_corr[[idx_corr]][["data"]]
+        p.mat <- nested_p[[idx_p]][["data"]]
+        
+        correlation.heatmap(corr, p.mat, significant.p.value())
+    })
+    
+    
+    
 }
 )

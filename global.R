@@ -29,6 +29,7 @@ zipcode.dat <- readRDS("./data/zipcode_data.rds")
 dat.mini <- readRDS("./data/app_mini_data.rds")
 scale.descriptions <- readRDS("./data/app_scale_descriptions.rds")
 scale.correlations.heatmap.dat <- load("./data/app_btwScaleCorrelations_data.RData")
+meditation.correlations.heatmap.dat <- load("./data/app_btwMeditationCorrelations_data.RData")
 
 # Add flag for when no demographic category is selected (for scatter plot), all
 # individuals are shown
@@ -42,7 +43,10 @@ dat.long <- dat.long |>
 #               timepoint.var = "T1", 
 #               scale.complete = "All", 
 #               fit = TRUE, 
-#               demographic.var = "gender")
+#               demographic.var = "gender",
+#               corr.matrix.sig.p.val = 0.05,
+#               corr.matrix.type = "meditation variables"
+#)
 
 # PREP DATA ----
 
@@ -144,7 +148,7 @@ demographic.treemaps <- list(
 
 # View correlation matrices using corrplot package - pass already computed
 # correlation and p-value matrices 
-correlation.heatmap <- function(corr.time, p.mat.time, ...) {
+correlation.heatmap <- function(corr.time, p.mat.time, sig.level, ...) {
     corrplot(
         corr.time,
         method = "color",
@@ -153,13 +157,38 @@ correlation.heatmap <- function(corr.time, p.mat.time, ...) {
         tl.col = "black",
         tl.srt = 45,
         p.mat = p.mat.time,
-        sig.level = 0.01,
+        sig.level = sig.level,
         insig = "blank",
         diag = FALSE
     )
 }
 
+# create nested list for correlation coefficient values - name should match
+# input$corr.matrix.type + time point (t1-t4)
 
+nested_corr <- list(
+    list(data = corr.t1, name = "well-being scales t1"),
+    list(data = med.corr.t1, name = "meditation variables t1"),
+    list(data = corr.t2, name = "well-being scales t2"),
+    list(data = med.corr.t2, name = "meditation variables t2"),
+    list(data = corr.t3, name = "well-being scales t3"),
+    list(data = med.corr.t3, name = "meditation variables t3"),
+    list(data = corr.t4, name = "well-being scales t4"),
+    list(data = med.corr.t4, name = "meditation variables t4")
+)
+
+# create nested list for correlation coefficient p values - name should match
+# input$corr.matrix.type + time point (t1-t4)
+nested_p <- list(
+    list(data = p.mat.t1, name = "well-being scales t1"),
+    list(data = med.p.mat.t1, name = "meditation variables t1"),
+    list(data = p.mat.t2, name = "well-being scales t2"),
+    list(data = med.p.mat.t2, name = "meditation variables t2"),
+    list(data = p.mat.t3, name = "well-being scales t3"),
+    list(data = med.p.mat.t3, name = "meditation variables t3"),
+    list(data = p.mat.t4, name = "well-being scales t4"),
+    list(data = med.p.mat.t4, name = "meditation variables t4")
+)
 
 ## PASS VARIABLES ----
 

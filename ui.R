@@ -310,51 +310,82 @@ shinyUI(fluidPage(
                      
                      
                      
-                     ### Well-being correlation matrices ----
+                     ### Correlation matrices ----
                      
                      tabPanel(
-                         "Well-being correlations",
+                         "Correlation matrices",
                          
-                         h2("Correlation matrices of well-being measures"),
+                         # h2("Correlation matrices"),
                          
-                         h4("Correlation matrices of the well-being measures 
-                            at the 4 data collection time points. Only significant
-                            correlations are presented - if a square is missing, 
-                            it is because there is not a significant correlation 
-                            for the 2 measures."
+                         h4("Correlation matrices of selected variable measures 
+                            at the 4 data collection time points."
+                         ) |> helper(
+                             icon = "circle-question",
+                             colour = info.icon.color,
+                             type = "markdown",
+                             content = "correlation_matrices_info"
                          ),
+                         
                          br(),
                          
-                         # Make 2 x 2 to plot the matrices for the 4 time points
+                         fluidRow(
+                             column(
+                                 4,
+                                 radioButtons(
+                                     inputId = "corr.matrix.type",
+                                     label = "Select correlation matrix type",
+                                     choices = c("well-being scales", "meditation variables"),
+                                     selected = "well-being scales"
+                                 ) |> helper(
+                                     icon = "circle-question",
+                                     colour = info.icon.color,
+                                     type = "markdown",
+                                     content = "correlation_matrix_type"
+                                 ),
+                             ),
+                             column(
+                                 4,
+                                 sliderInput(
+                                     inputId = "corr.matrix.sig.p.val",
+                                     label = "Select significance level",
+                                     min = 0,
+                                     max = 0.1,
+                                     value = 0.05
+                                 ) |> helper(
+                                     icon = "circle-question",
+                                     colour = info.icon.color,
+                                     type = "markdown",
+                                     content = "correlation_sig_level"
+                                 ),
+                             )
+                         ),
                          fluidRow(column(
                              6,
-                             h3(HTML("<b>Baseline</b>"), 
+                             h3(HTML("<b>Baseline</b>"),
                                 style = "text-align:center"),
-                             plotOutput("scale.correlation.heatmap.t1")
+                             plotOutput("correlation.heatmap.t1")
                          ),
                          column(
                              6,
-                             h3(HTML("<b>4-month follow-up</b>"), 
+                             h3(HTML("<b>4-month follow-up</b>"),
                                 style = "text-align:center"),
-                             plotOutput("scale.correlation.heatmap.t2")
+                             plotOutput("correlation.heatmap.t2")
                          )),
-                         
                          fluidRow(column(
                              6,
-                             h3(HTML("<b>8-month follow-up</b>"), 
+                             h3(HTML("<b>8-month follow-up</b>"),
                                 style = "text-align:center"),
-                             plotOutput("scale.correlation.heatmap.t3")
+                             plotOutput("correlation.heatmap.t3")
                          ),
                          column(
                              6,
-                             h3(HTML("<b>1-year follow-up</b>"), 
+                             h3(HTML("<b>1-year follow-up</b>"),
                                 style = "text-align:center"),
-                             plotOutput("scale.correlation.heatmap.t4")
+                             plotOutput("correlation.heatmap.t4")
                          ))
-                     ) # close well-being correlation matrices subtab
+                     ) # close correlation matrices subtab
                  ) # close all well-being subtabs
         ), # close well-being tab
-        
         
         
         ## Credits tab ----
