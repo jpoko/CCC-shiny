@@ -1,14 +1,14 @@
 
 # UI ----
 
-
 shinyUI(fluidPage(
     # add google analytics/tracking to shiny app
     tags$head(includeHTML(("google-analytics.html"))),
     
     theme = shinytheme("flatly"),
+    shinyjs::useShinyjs(),
 
-    # to add css styling, include next line and update css file
+    # to add css styling
     #theme = "style.css",
     
     navbarPage(
@@ -16,8 +16,7 @@ shinyUI(fluidPage(
         title = div(
             span("Contemplative Coping during Covid-19",
                  style = "position: relative; top: 50%; transform: translateY(-50%);")
-        ),
-        # close application title
+        ), # close application title (NOTE: close parentheses added in UI for clarity)
         
         
         ## About tab ----
@@ -67,8 +66,7 @@ shinyUI(fluidPage(
                             content = "map_info"
                         ),
                     br()
-                ),
-                # close Map subtab
+                ), # close Map subtab
                 
                 
                 
@@ -129,8 +127,9 @@ shinyUI(fluidPage(
                      tabPanel(
                          "Meditation & well-being",
                          
-                         h2("Relationships between meditation experience and 
-                            measures of well-being"),
+                         h2("Relationships between meditation experience and
+                            measures of well-being"
+                         ),
                          br(),
                          
                          # Sidebar panel for input/controls
@@ -151,6 +150,13 @@ shinyUI(fluidPage(
                                      content = "scatterplot_yvar"
                                  ),
                              
+                             materialSwitch(
+                                 inputId = "hide.show.scale.descriptions",
+                                 label = "Show/hide scale description",
+                                 value = FALSE,
+                                 status = "success"
+                             ),
+                             
                              # Input: meditation variable
                              selectInput(
                                  inputId = "meditation.var",
@@ -169,6 +175,13 @@ shinyUI(fluidPage(
                                      type = "markdown",
                                      content = "scatterplot_xvar"
                                  ),
+                             
+                             materialSwitch(
+                                 inputId = "hide.show.meditation.descriptions",
+                                 label = "Show/hide meditation description",
+                                 value = FALSE,
+                                 status = "success"
+                             ),
                              
                              # Input: time point
                              radioButtons(
@@ -267,11 +280,15 @@ shinyUI(fluidPage(
                          
                          # Main panel with scatter plots
                          mainPanel(
-                             
                              # heading and scale description text
                              h3(textOutput("caption")),
-                             htmlOutput("scale.description"),
                              br(),
+                         
+                             # show description of scale - toggle
+                             uiOutput("lay.scale.description"),
+                             
+                             # show description of meditation - toggle
+                             uiOutput("meditation.var.description"),
                              
                              # main scatter plot
                              plotlyOutput("scatPlot") |>
@@ -300,6 +317,7 @@ shinyUI(fluidPage(
                                  ),
                              
                              br(),br(),br(),
+
                              # heading for faceted scatter plots
                              h4(textOutput("caption.facets")),
                              
@@ -310,12 +328,196 @@ shinyUI(fluidPage(
                      
                      
                      
-                     ### Correlation matrices ----
+                     ### Explore scales ----
+                     tabPanel(
+                         "Explore individual well-being scales",
+                         sidebarPanel(
+        
+                             selectInput(
+                                 inputId = "scale.type.var.single",
+                                 label = "Well-being scale",
+                                 choice = scale.label,
+                                 selected = "pss"
+                             ) |>
+                                 shinyhelper::helper(
+                                     icon = "circle-question",
+                                     colour = info.icon.color,
+                                     type = "markdown",
+                                     content = "single_scale_var"
+                                 ),
+                             
+                             pickerInput(
+                                 inputId = "single_scale_view",
+                                 label = "What to view",
+                                 choices = list(
+                                     General = c("Description" = "description",
+                                                 "Descriptives" = "descriptives",
+                                                 "Item response distributions" = "item_response_distribution"),
+                                     Distribution = c("Raincloud plot" = "raincloud_plot",
+                                                      "Histogram" = "histogram_plot",
+                                                      "Estimated density plot" = "estimated_density_plot",
+                                                      "Box plot" = "box_plot",
+                                                      "Violin plot" = "violin_plot"),
+                                     `Over time` = c("Scores by time point" = "scores_by_time_point",
+                                                     "Scores by date" = "scores_by_date",
+                                                     "Scores by date and time point" = "scores_by_date_by_time_point"),
+                                     `Missing data` = c("Missing all items" = "missing_all_items",
+                                                        "Missing individual items" = "missing_individual_items",
+                                                        "Missing some or all items" = "missing_some_all_items")
+                                 )
+                             ) |>
+                                 shinyhelper::helper(
+                                     icon = "circle-question",
+                                     colour = info.icon.color,
+                                     type = "markdown",
+                                     content = "single_scale_view")
+                                
+                         ), # close sidebarPanel of explore scales
+                         
+                         mainPanel(
+                             # conditional panels for different things to show 
+                             # about the selected scale
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view=='description'",
+                                 
+                                 # show description of scale
+                                 uiOutput("long.scale.description"),
+                             ),
+                             
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view=='descriptives'",
+                                 
+                                 # show descriptives table
+                                 DT::dataTableOutput("descriptives.table") 
+                             ),
+                             
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'item_response_distribution'",
+            
+                                 h4("Feature forthcoming")
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'raincloud_plot'",
+                                 h4("Raincloud plots"),
+                                 
+                                 plotlyOutput("single.scale.raincloudPlot") |>
+                                     helper(
+                                        icon = "circle-question",
+                                        colour = info.icon.color,
+                                        type = "markdown",
+                                        content = "raincloud_plot_info"
+                                        )
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'histogram_plot'",
+                                 h4("Histogram - Frequency of scores"),
+                                 sliderInput("histo.bin.size", "Select bin size:",
+                                             min = 1, max = 30,
+                                             value = 1),
+                                 br(),
+                                 plotlyOutput("single.scale.histogramPlot") |>
+                                     helper(
+                                         icon = "circle-question",
+                                         colour = info.icon.color,
+                                         type = "markdown",
+                                         content = "histogram_info"
+                                     )
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'estimated_density_plot'",
+                                 br(),
+                                 plotlyOutput("single.scale.estimateddensityPlot") |>
+                                     helper(
+                                         icon = "circle-question",
+                                         colour = info.icon.color,
+                                         type = "markdown",
+                                         content = "estimated_density_info"
+                                     )
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'box_plot'",
+                                 br(),
+                                 plotlyOutput("single.scale.boxPlot") |>
+                                     helper(
+                                         icon = "circle-question",
+                                         colour = info.icon.color,
+                                         type = "markdown",
+                                         content = "box_plot_info"
+                                     )
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'violin_plot'",
+                                 br(),
+                                 plotlyOutput("single.scale.violinPlot") |>
+                                     helper(
+                                         icon = "circle-question",
+                                         colour = info.icon.color,
+                                         type = "markdown",
+                                         content = "violin_plot_info"
+                                     )
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'scores_by_time_point'",
+                                 
+                                 h4("Feature forthcoming")
+                                 
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'scores_by_date'",
+                                 h4("Feature forthcoming"),
+                                 # radioButtons(
+                                 #     inputId = "scores.by.date.type",
+                                 #     label = "Select information type",
+                                 #     choices = c("average scores", "median scores"),
+                                 #     selected = "average")
+                                 
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'scores_by_date_by_time_point'",
+                                 
+                                 h4("Feature forthcoming")
+                                 
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'missing_all_items'",
+                                 
+                                 h4("Feature forthcoming")
+                                 
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'missing_individual_items'",
+                                 
+                                 h4("Feature forthcoming")
+                                 
+                             ),
+                             
+                             conditionalPanel(
+                                 condition = "input.single_scale_view == 'missing_some_all_items'",
+                                 
+                                 h4("Feature forthcoming")
+                                 
+                             ),
+                         )# close main panel
+                     ), # close explore scales tab
+                               
                      
+                     ### Correlation matrices ----
+                    
                      tabPanel(
                          "Correlation matrices",
-                         
-                         # h2("Correlation matrices"),
                          
                          h4("Correlation matrices of selected variable measures 
                             at the 4 data collection time points."
@@ -385,8 +587,9 @@ shinyUI(fluidPage(
                          ))
                      ) # close correlation matrices subtab
                  ) # close all well-being subtabs
-        ), # close well-being tab
-        
+                 ), # close well-being tab
+       
+                 
         
         ## Credits tab ----
         

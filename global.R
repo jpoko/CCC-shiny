@@ -3,6 +3,7 @@
 # LIBRARIES ----
 
 library(tidyverse)
+library(markdown)     # to include markdown files
 library(shinythemes)
 library(leaflet)      # for interactive maps
 
@@ -11,6 +12,7 @@ library(ggeasy)       # add label names to ggplot
 
 library(plotly)       # interactive plots
 library(viridis)      # color palette
+library(ggforce)      # sina plots
 
 library(psych)        # correlations with p values
 library(ggcorrplot)   # correlation matrices
@@ -19,6 +21,8 @@ library(ppcor)        # partial correlations
 
 library(shinyhelper)  # helper pop-ups
 library(fontawesome)  # icons
+library(shinyWidgets) # custom input widgets
+library(shinyjs)      # extend shiny
 
 library(conflicted)   # checks if have conflicting function names
 
@@ -27,7 +31,6 @@ library(conflicted)   # checks if have conflicting function names
 dat.long <- readRDS("./data/app_data_long.rds")
 zipcode.dat <- readRDS("./data/zipcode_data.rds")
 dat.mini <- readRDS("./data/app_mini_data.rds")
-scale.descriptions <- readRDS("./data/app_scale_descriptions.rds")
 scale.correlations.heatmap.dat <- load("./data/app_btwScaleCorrelations_data.RData")
 meditation.correlations.heatmap.dat <- load("./data/app_btwMeditationCorrelations_data.RData")
 
@@ -36,20 +39,20 @@ meditation.correlations.heatmap.dat <- load("./data/app_btwMeditationCorrelation
 dat.long <- dat.long |>
     mutate(no.demo = "All")
 
-# to test code:
-# input <- list(demo.treemaps.var = "Gender", 
-#               scale.type.var = "pss", 
-#               meditation.var = "med.years", 
-#               timepoint.var = "T1", 
-#               scale.complete = "All", 
-#               fit = TRUE, 
+#to test code:
+# input <- list(demo.treemaps.var = "Gender",
+#               scale.type.var = "pss",
+#               meditation.var = "med.years",
+#               timepoint.var = "T1",
+#               scale.complete = "All",
+#               fit = TRUE,
 #               demographic.var = "gender",
 #               corr.matrix.sig.p.val = 0.05,
-#               corr.matrix.type = "meditation variables"
-#)
+#               corr.matrix.type = "meditation variables",
+#               scale.type.var.single = "stai"
+# )
 
 # PREP DATA ----
-
 
 ## TREEMAPS ----
 
@@ -190,6 +193,8 @@ nested_p <- list(
     list(data = med.p.mat.t4, name = "meditation variables t4")
 )
 
+
+
 ## PASS VARIABLES ----
 
 # Time point labels (used in MH tab text updating what time point is selected)
@@ -234,5 +239,10 @@ info.icon.color = "#cc0000"   # red color
 heat.col <- colorRampPalette(c("#482576", "#287d8e","#FFFFFF", "#95d840","#fde725"))  
 
 
-
+color.palette.tmpt <- c(
+    "T1" = "#fde725", # yellow
+    "T2" = "#35b779", # green
+    "T3" = "#316883", # blue
+    "T4" = "#472c7a" # purple
+)
 

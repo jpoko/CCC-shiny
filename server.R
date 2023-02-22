@@ -19,7 +19,7 @@ shinyServer(function(input, output) {
     })
     
     
-    ### Table of demographic counts ----
+    ### Table of demographic counts & percentages ----
     
     output$demographic.table <- DT::renderDataTable({
         dat.mini |>
@@ -38,7 +38,6 @@ shinyServer(function(input, output) {
             addTiles() |>
             setView(-93.65, 42.0285, zoom = 3) |>
             addMarkers(clusterOptions = markerClusterOptions())
-        
     })
     
     
@@ -250,7 +249,7 @@ shinyServer(function(input, output) {
             plot_ly(data = scatter.data(), 
                     y = ~get(score.option), 
                     type = input$marginal.y.plot.type, 
-                    alpha =.5, 
+                    alpha = .5, 
                     color = ~get(input$demographic.var), 
                     colors = "viridis", 
                     showlegend = FALSE)
@@ -492,12 +491,47 @@ shinyServer(function(input, output) {
     
     ### Scale descriptions ----
     
-    output$scale.description <- renderText({
-        paste0(scale.descriptions$scale.description[scale.descriptions$scale == input$scale.type.var])
+    ### Short scale descriptions----
+    scale_lay_description_file <- reactive({
+        switch(input$scale.type.var,
+               "pss" = "./text_mds/scales_lay_descriptions/pss_lay.md",
+               "stai" = "./text_mds/scales_lay_descriptions/stai_lay.md",
+               "cesd" = "./text_mds/scales_lay_descriptions/cesd_lay.md",
+               "pcl" = "./text_mds/scales_lay_descriptions/pcl_lay.md",
+               "uls" = "./text_mds/scales_lay_descriptions/uls_lay.md",
+               "sc" = "./text_mds/scales_lay_descriptions/sc_lay.md",
+               "risc" = "./text_mds/scales_lay_descriptions/risc_lay.md",
+               "ptgi" = "./text_mds/scales_lay_descriptions/ptgi_lay.md",
+               "mhc" = "./text_mds/scales_lay_descriptions/mhc_lay.md")
     })
     
+    output$lay.scale.description <- renderUI({
+        includeMarkdown(scale_lay_description_file())
+    })
+  
+     observeEvent(input$hide.show.scale.descriptions, {
+         toggle("lay.scale.description")
+     })
     
-    
+     ### Meditation duration descriptions ----
+     
+     ### Short meditation variable descriptions----
+     meditation_vars_description_file <- reactive({
+         switch(input$meditation.var,
+                "med.years" = "./text_mds/meditation_vars_descriptions/years_meditation_description.md",
+                "days.week.prac" = "./text_mds/meditation_vars_descriptions/days_week_practice_description.md",
+                "total.mins.sit" = "./text_mds/meditation_vars_descriptions/total_mins_practice_description.md",
+                "mins.week.prac" = "./text_mds/meditation_vars_descriptions/mins_week_practice_description.md")
+     })
+     
+     output$meditation.var.description <- renderUI({
+         includeMarkdown(meditation_vars_description_file())
+     })
+     
+     observeEvent(input$hide.show.meditation.descriptions, {
+         toggle("meditation.var.description")
+     })
+     
     
     ### Correlation matrices ----
     
@@ -558,7 +592,324 @@ shinyServer(function(input, output) {
         correlation.heatmap(corr, p.mat, significant.p.value())
     })
     
+ 
+    
+    ## Individual scales ----
+    
+    # get the index of the total columns for the scale selected
+    index_individual_scale_selected_explore <- reactive({
+        col.interest <- paste("^", input$scale.type.var.single, ".total.", sep = "")
+        total.cols.interest <- grep(col.interest, colnames(dat.mini))
+        total.cols.interest
+    })
+    
+    data_individual_scale_selected_explore <- reactive({
+        selected.dat <- dat.long |>
+            dplyr::filter(scale %in% input$scale.type.var.single) 
+        selected.dat
+    })
+    
+    # get abbreviation of scale to use in plots
+    abbreviation_individual_scale_selected_explore <- reactive({
+        abbreviation <- paste(input$scale.type.var.single) |> str_to_upper()
+    })
     
     
-}
-)
+    
+    ### Detailed scale descriptions----
+    scale_detailed_description_file <- reactive({
+        switch(input$scale.type.var.single,
+               "pss" = "./text_mds/scales_detailed_descriptions/pss_detailed.md",
+               "stai" = "./text_mds/scales_detailed_descriptions/stai_detailed.md",
+               "cesd" = "./text_mds/scales_detailed_descriptions/cesd_detailed.md",
+               "pcl" = "./text_mds/scales_detailed_descriptions/pcl_detailed.md",
+               "uls" = "./text_mds/scales_detailed_descriptions/uls_detailed.md",
+               "sc" = "./text_mds/scales_detailed_descriptions/sc_detailed.md",
+               "risc" = "./text_mds/scales_detailed_descriptions/risc_detailed.md",
+               "ptgi" = "./text_mds/scales_detailed_descriptions/ptgi_detailed.md",
+               "mhc" = "./text_mds/scales_detailed_descriptions/mhc_detailed.md")
+    })
+    
+    output$long.scale.description <- renderUI({
+        includeMarkdown(scale_detailed_description_file())
+    })
+    
+    
+    ### Descriptive table ----
+    
+    descriptives_scale_selected <- reactive({ 
+       
+        # num NAs for total scores of interest at each time point
+        freq.nas <- dat.mini %>% 
+            dplyr::select(all_of(index_individual_scale_selected_explore())) %>% 
+            dplyr::summarize_all(funs(sum(is.na(.)))) %>% 
+            t(.) %>% 
+            as.data.frame()
+    
+        # summary stats
+        total.summary <- as.data.frame(describe(dat.mini[index_individual_scale_selected_explore()]))
+    
+        # add num NAs and round numbers
+        total.summary <- total.summary %>% 
+            mutate(NAs = freq.nas[,1]) %>% 
+            mutate(across(where(is.numeric), round, 2))
+    
+        # add time point
+        total.summary <- total.summary %>% 
+            rownames_to_column(var = "timept") %>% 
+            remove_rownames() %>% 
+            dplyr::select(-c(vars, trimmed, mad))
+    
+        total.summary 
+    })
+    
+    output$descriptives.table <- DT::renderDataTable({
+        descriptives_scale_selected()
+    }, options = list(paging = FALSE, dom = "t"), rownames = FALSE)
+    
+    
+    
+    ### Item response distributions ----
+    
+    item_response_distribution_data_selected <- reactive({
+        
+        # TO DO: read in item-level response data to do this
+    })
+    
+    output$plot.item.response.distribution.selected <- renderPlot({
+
+    })
+ 
+    
+    ### Raincloud plots ----
+    
+    output$single.scale.raincloudPlot <- renderPlotly({
+    
+        raincloud.data <- data_individual_scale_selected_explore() |>
+            dplyr::mutate(
+                time.pt = factor(time.pt,
+                                 levels = c("T4", "T3", "T2", "T1"))) 
+        
+            raincloud.plot <- chronicle::make_raincloud(
+                dt = raincloud.data,
+                value = 'score',
+                groups = 'time.pt',
+                adjust = 0.5, # kernal width of bins
+                include_boxplot = TRUE,
+                include_mean = TRUE,
+                include_median = TRUE,
+                force_all_jitter_obs = TRUE,
+                ggtheme = 'bw',
+                plot_palette_generator = "viridis",
+                x_axis_label = "Scale score")
+            
+            raincloud.plot
+            
+            })
+                                      
+    ### Histograms ----           
+    
+    output$single.scale.histogramPlot <- renderPlotly({
+        
+        p <- data_individual_scale_selected_explore() |>
+            
+            ggplot(aes(score)) +
+            
+            # add histogram
+            geom_histogram(binwidth = input$histo.bin.size,
+                           color = 'white',
+                           fill = 'black') +
+            
+            # # add mean/median lines
+            # add.mean.line.histo +
+            # add.median.line.histo +
+            # 
+            # # add min/max lines
+            # my_add.min.max.lines.vert(
+            #     min.score = min.score,
+            #     max.score = max.score
+            # ) +
+            
+            # x- and y-axis labels
+            labs(
+                #title = "Frequency of scores",
+                x = str_glue("Total {abbreviation_individual_scale_selected_explore()} scores"), 
+                y = "Frequency") +
+            
+            # apply theme
+            theme_bw() +
+            
+            theme(
+                # remove legend
+                legend.position = "none",
+                
+                # color of facet strip and facet text
+                strip.background = element_rect(
+                    color = "black",
+                    fill = "#526ea3"),
+                strip.text = element_text(
+                    color = "white",
+                    face = "bold",
+                    size = 12)) +
+
+            # facet according to time point
+            facet_wrap( ~ time.pt)
+        
+        gp <- ggplotly(p)
+        gp
+    })                       
+                
+    
+    ### Estimated density plot ----
+    
+    output$single.scale.estimateddensityPlot <- renderPlotly({    
+    
+        density.plot <- data_individual_scale_selected_explore() |>
+
+        ggplot(aes(score)) +
+       
+        geom_density(
+            aes(color = time.pt,
+                fill = time.pt),
+            alpha = .3,
+            linewidth = .5) +
+        
+        theme_bw() +
+        
+        # apply color
+        scale_fill_manual(
+            name = "Time point", 
+            values = color.palette.tmpt) +
+        
+        scale_color_manual(
+            name = "Time point", 
+            values = color.palette.tmpt) +
+        
+        labs(
+            title = str_glue("Estimated densities of {abbreviation_individual_scale_selected_explore()} scores"),
+            x = str_glue("Total {abbreviation_individual_scale_selected_explore()} scores"),
+            y = "Estimated density"
+        )
+    
+    gp <- ggplotly(density.plot)
+    gp
+})
+  
+    
+    ### Box plot ----
+    
+    output$single.scale.boxPlot <- renderPlotly({    
+        
+        box.plot <- data_individual_scale_selected_explore() |>
+            
+            ggplot(aes(
+                x = time.pt, 
+                y = score, 
+                fill = time.pt)) + 
+            
+            # Add individual points 
+            geom_jitter(
+                # if want color of points to be same color as box plots
+                #aes(color = time.pt),
+                color = "black",
+                size = 0.5, 
+                alpha = 0,
+                width = .1) + 
+            
+            scale_fill_manual(values = color.palette.tmpt) +
+        
+            geom_boxplot() + 
+            
+            geom_jitter(
+                # if want color of points to be same color as box plots
+                #aes(color = time.pt),
+                color = "black",
+                size = 0.5, 
+                alpha = 0.75,
+                width = .1) + 
+            
+            labs(
+                title = str_glue("Box plots of total {abbreviation_individual_scale_selected_explore()} scores at each time point"),
+                x = "Time point", 
+                y = str_glue("Total {abbreviation_individual_scale_selected_explore()} scores")
+            ) +
+            
+            # apply theme
+            theme_bw() +
+            
+            # remove legend
+            theme(legend.position = "none") 
+            
+        ggplotly(box.plot) 
+        
+    })
+    
+    
+    ### Violin plot ----
+    
+    output$single.scale.violinPlot <- renderPlotly({    
+        
+        p <- data_individual_scale_selected_explore() |>
+         
+            ggplot(aes(x = time.pt, y = score, fill = time.pt)) + 
+            
+            geom_sina(
+                # size of point
+                size = 1,
+                # make semi-transparent
+                alpha = 0,
+                # control range/width of points
+                maxwidth = .7) +
+            
+            # color palette to use
+            scale_fill_manual(values = c(
+                "T1" = "#fde725", # yellow
+                "T2" = "#35b779", # green
+                "T3" = "#316883", # blue
+                "T4" = "#472c7a" # purple
+                    )) +
+            
+            # make violin plot
+            geom_violin(
+                # scale violin area proportionate to number of observations
+                scale = "count",
+                # bandwidth adjustment - SD of smoothing kernel
+                bw = .7) + 
+            
+            # add individual points
+            geom_sina(
+                # size of point
+                size = 1,
+                # make semi-transparent
+                alpha = .75,
+                # control range/width of points
+                maxwidth = .7) +
+            
+            # apply theme
+            theme_bw() +
+            
+            # remove legend
+            theme(legend.position = "none") +
+            
+            # add axis labels
+            labs(
+                title = str_glue("Violin plots of total {abbreviation_individual_scale_selected_explore()} scores at each time point"),
+                x = "Time point", 
+                y = str_glue("Total {abbreviation_individual_scale_selected_explore()} scores")
+            ) 
+        
+        # calculate the mean and SD to add to the plot  
+        violin.plot <- p + stat_summary(
+            fun.data = mean_sdl,
+            fun.args = list(mult = 1),
+            geom = "pointrange", 
+            color = '#ff9966',
+            size = 2)
+        
+        ggplotly(violin.plot)
+    })
+    
+      
+})    
+    
+    
