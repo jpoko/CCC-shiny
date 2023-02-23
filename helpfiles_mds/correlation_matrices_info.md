@@ -10,3 +10,7 @@ significant correlations.
 You can select the type of variables to include in
 the correlation matrix as well as the significance level to use as the cutoff 
 to show correlations.
+
+#### Type of correlations:  
+Well-being scales = Pearson correlation  
+Meditation variables = Spearman correlation  

@@ -791,6 +791,11 @@ shinyServer(function(input, output) {
             y = "Estimated density"
         )
     
+        # option to view by time point
+        if (input$estimated.density.single.faceted == "Multiple") {
+            density.plot <- density.plot + facet_wrap(~ time.pt)
+        }
+
     gp <- ggplotly(density.plot)
     gp
 })
