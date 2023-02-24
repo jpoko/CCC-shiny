@@ -268,7 +268,7 @@ shinyUI(fluidPage(
                         icon = "circle-question",
                         colour = info.icon.color,
                         type = "markdown",
-                        content = "violin_plot_info"
+                        content = "single_scale_violin_plot_info"
                     )
             ),
             

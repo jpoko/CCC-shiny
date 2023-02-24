@@ -2,7 +2,7 @@
 
 ## About the study:
 
-The <a href="https://contemplative-coping-covid-19.ucdavis.edu/" target="_blank">Contemplative Coping during COVID-19 (CCC)</a> is a multidisciplinary research study designed to learn about the lived experiences of meditation practitioners in the United States during the COVID-19 pandemic.  
+The <a href="https://contemplative-coping-covid-19.org/" target="_blank">Contemplative Coping during COVID-19 (CCC)</a> is a multidisciplinary research study designed to learn about the lived experiences of meditation practitioners in the United States during the COVID-19 pandemic.  
 
 The primary goals of the study are to understand:  
 
@@ -20,7 +20,7 @@ The CCC study was a year-long longitudinal study with data collected at 4 time p
 
 A total of 819 eligible applicants applied, 608 were admitted into the study, 389 people participated in the baseline assessment, and 236 participated in the 1-year follow-up.
 
-You can learn more about the project and research team <a href="https://contemplative-coping-covid-19.ucdavis.edu/" target="_blank">here</a>.
+You can learn more about the project and research team <a href="https://contemplative-coping-covid-19.org/" target="_blank">here</a>.
 
 ## How to use this App:
 
