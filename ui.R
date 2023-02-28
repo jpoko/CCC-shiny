@@ -35,14 +35,13 @@ shinyUI(fluidPage(
                           the left, you can click on the icon for further 
                           information about options available to you or what is 
                           presented in the plot or table."
-                )
+                ),
+                br(),br()
             )
         ),
         # close About tab
         
-        
-        
-        
+
         ## Demographics tab ----
         
         # Demographics tab with subtabs
@@ -183,7 +182,8 @@ shinyUI(fluidPage(
             #### Descriptives ----
             conditionalPanel(
                 condition = "input.single_scale_view=='descriptives'",
-                
+                h4("Descriptive stats of selected scale"),
+                br(),
                 # show descriptives table
                 DT::dataTableOutput("descriptives.table") 
             ),
@@ -276,28 +276,83 @@ shinyUI(fluidPage(
             conditionalPanel(
                 condition = "input.single_scale_view == 'scores_by_time_point'",
                 
-                h4("Feature forthcoming")
+                h3("Change in scores between time points"),
+                h5("Top: Corset plots showing individual change in scores between 
+                   the 2 time points selected, faceted by scores that decreased, 
+                   increased, or did not change."),
+                h5("Bottom: Histogram of the distribution of change in scores 
+                   between the 2 time points selected."),
+                br(),
                 
+                uiOutput("corset.tmpt.compare.options"),
+                
+                br(),
+                h4("Corset plots"),
+                plotOutput("single.scale.corsetPlot") |>
+                    helper(
+                        icon = "circle-question",
+                        colour = info.icon.color,
+                        type = "markdown",
+                        content = "single_scale_corset_plot_info"
+                    ),
+                
+                br(),
+                h4("Histogram of distribution of change"),
+                plotlyOutput("single.scale.corset.change.histoPlot") |>
+                    helper(
+                        icon = "circle-question",
+                        colour = info.icon.color,
+                        type = "markdown",
+                        content = "single_scale_corset_plot_histogram_info"),
+                br()
             ),
+            
             
             #### Scores by date ----
             conditionalPanel(
                 condition = "input.single_scale_view == 'scores_by_date'",
-                h4("Feature forthcoming"),
-                # radioButtons(
-                #     inputId = "scores.by.date.type",
-                #     label = "Select information type",
-                #     choices = c("average scores", "median scores"),
-                #     selected = "average")
+                h4("Scores by date"),
+                h5("Line plot of scores by month. Size of dot indicates the number of people with scores in that month contributing to the average/median score plotted."),
                 
+                radioButtons(
+                    inputId = "scores.by.date.type",
+                    label = "What should be plotted?",
+                    choices = c("average scores", "median scores"),
+                    selected = "average scores"),
+                plotlyOutput("single.scale.scores.by.date.linePlot") |>
+                    helper(
+                        icon = "circle-question",
+                        colour = info.icon.color,
+                        type = "markdown",
+                        content = "single_scale_scores_by_date_info"),
+                br(),  
             ),
+            
+            
             
             #### Scores by date by time point ----
             conditionalPanel(
                 condition = "input.single_scale_view == 'scores_by_date_by_time_point'",
                 
-                h4("Feature forthcoming")
+                h4("Scores by date by time point"),
+                h5("Line plot of scores by month by time point. Size of dot 
+                   indicates the number of people with scores in that month 
+                   contributing to the average/median score plotted. Color 
+                   indicates the study time point."),
                 
+               radioButtons(
+                   inputId = "scores.by.date.by.timepoint.type",
+                   label = "What should be plotted?",
+                   choices = c("average scores", "median scores"),
+                   selected = "average scores"),
+               
+               plotlyOutput("single.scale.scores.by.date.by.timepoint.linePlot") |>
+                   helper(
+                       icon = "circle-question",
+                       colour = info.icon.color,
+                       type = "markdown",
+                       content = "single_scale_scores_by_date_by_timepoint_info"),
+               br()
             ),
             
             #### Missing all items ----

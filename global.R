@@ -3,6 +3,7 @@
 # LIBRARIES ----
 
 library(tidyverse)
+library(lubridate)    # to deal with dates
 library(markdown)     # to include markdown files
 library(shinythemes)
 library(leaflet)      # for interactive maps
@@ -18,6 +19,8 @@ library(psych)        # correlations with p values
 library(ggcorrplot)   # correlation matrices
 library(corrplot)     # view correlation matrices as heatmap
 library(ppcor)        # partial correlations
+
+library(ggcorset)     # corset plots
 
 library(shinyhelper)  # helper pop-ups
 library(fontawesome)  # icons
@@ -195,6 +198,139 @@ nested_p <- list(
 
 
 
+
+## CORSET PLOT DATA
+
+
+# For scales with 4 time points
+calculate.changes.4tmpts <- function(list.scales) {
+    
+    for (i in seq_along(list.scales)) {
+    
+    ## Time t1 vs t2
+    
+    # name for change column 
+    col_name <- paste(list.scales[i], "change", "t1", "t2", sep = ".")
+    
+    dat.mini <- dat.mini |>
+        mutate({{col_name}} := !!sym(paste0(list.scales[i], ".total.t2")) - !!sym(paste0(list.scales[i], ".total.t1")))
+    
+    # name for direction column
+    direction_name <- paste(list.scales[i], "direction", "t1", "t2", sep = ".")
+    
+    dat.mini[[direction_name]] <- ifelse(
+        dat.mini[[col_name]] < 0, "Decrease",
+        ifelse(dat.mini[[col_name]] > 0, "Increase",
+               "No change"))
+    
+    colnames(dat.mini)[which(colnames(dat.mini) == direction_name)] <-
+        direction_name
+    
+    
+    ## Time t2 vs t3
+    
+    # name for change column 
+    col_name <- paste(list.scales[i], "change", "t2", "t3", sep = ".")
+    
+    dat.mini <- dat.mini |>
+        mutate({{col_name}} := !!sym(paste0(list.scales[i], ".total.t3")) - !!sym(paste0(list.scales[i], ".total.t2")))
+    
+    # name for direction column
+    direction_name <- paste(list.scales[i], "direction", "t2", "t3", sep = ".")
+    
+    dat.mini[[direction_name]] <- ifelse(
+        dat.mini[[col_name]] < 0, "Decrease",
+        ifelse(dat.mini[[col_name]] > 0, "Increase",
+               "No change"))
+    
+    colnames(dat.mini)[which(colnames(dat.mini) == direction_name)] <-
+        direction_name
+    
+    ## Time t3 vs t4
+    
+    # name for change column 
+    col_name <- paste(list.scales[i], "change", "t3", "t4", sep = ".")
+    
+    dat.mini <- dat.mini |>
+        mutate({{col_name}} := !!sym(paste0(list.scales[i], ".total.t4")) - !!sym(paste0(list.scales[i], ".total.t3")))
+    
+    # name for direction column
+    direction_name <- paste(list.scales[i], "direction", "t3", "t4", sep = ".")
+    
+    dat.mini[[direction_name]] <- ifelse(
+        dat.mini[[col_name]] < 0, "Decrease",
+        ifelse(dat.mini[[col_name]] > 0, "Increase",
+               "No change"))
+    
+    colnames(dat.mini)[which(colnames(dat.mini) == direction_name)] <-
+        direction_name
+    
+    
+    ## Time t1 vs t4
+    
+    # name for change column 
+    col_name <- paste(list.scales[i], "change", "t1", "t4", sep = ".")
+    
+    dat.mini <- dat.mini |>
+        mutate({{col_name}} := !!sym(paste0(list.scales[i], ".total.t4")) - !!sym(paste0(list.scales[i], ".total.t1")))
+    
+    # name for direction column
+    direction_name <- paste(list.scales[i], "direction", "t1", "t4", sep = ".")
+    
+    dat.mini[[direction_name]] <- ifelse(
+        dat.mini[[col_name]] < 0, "Decrease",
+        ifelse(dat.mini[[col_name]] > 0, "Increase",
+               "No change"))
+    
+    colnames(dat.mini)[which(colnames(dat.mini) == direction_name)] <-
+        direction_name
+    }
+    dat.mini
+}
+
+
+
+## For scales with 2 time points
+calculate.changes.2tmpts <- function(list.scales) {
+    
+    for (i in seq_along(list.scales)) {
+        
+        ## Time t1 vs t4
+        
+        # name for change column 
+        col_name <- paste(list.scales[i], "change", "t1", "t4", sep = ".")
+        
+        dat.mini <- dat.mini |>
+            mutate({{col_name}} := !!sym(paste0(list.scales[i], ".total.t4")) - !!sym(paste0(list.scales[i], ".total.t1")))
+        
+        # name for direction column
+        direction_name <- paste(list.scales[i], "direction", "t1", "t4", sep = ".")
+        
+        dat.mini[[direction_name]] <- ifelse(
+            dat.mini[[col_name]] < 0, "Decrease",
+            ifelse(dat.mini[[col_name]] > 0, "Increase",
+                   "No change")
+        )
+        
+        colnames(dat.mini)[which(colnames(dat.mini) == direction_name)] <-
+            direction_name
+    }
+dat.mini
+}
+
+
+# 4 time point scales
+list.scales <- c("pss", "stai", "cesd", "pcl", "uls", "risc", "ptgi", "mhc")
+
+dat.mini <- calculate.changes.4tmpts(list.scales)
+
+# 2 time point scales
+list.scales <- "sc"
+
+dat.mini <- calculate.changes.2tmpts(list.scales)
+
+
+
 ## PASS VARIABLES ----
 
 # Time point labels (used in MH tab text updating what time point is selected)
@@ -246,3 +382,8 @@ color.palette.tmpt <- c(
     "T4" = "#472c7a" # purple
 )
 
+# color of difference histograms
+histo.color <- '#277f8e'
+
+mean.color <- '#ff9966'
+    

@@ -533,7 +533,7 @@ shinyServer(function(input, output) {
      })
      
     
-    ### Correlation matrices ----
+    ## Correlation matrices ----
     
     # get significance level input
     significant.p.value <- reactive({
@@ -596,6 +596,8 @@ shinyServer(function(input, output) {
     
     ## Individual scales ----
     
+    ### General ----
+    
     # get the index of the total columns for the scale selected
     index_individual_scale_selected_explore <- reactive({
         col.interest <- paste("^", input$scale.type.var.single, ".total.", sep = "")
@@ -616,7 +618,7 @@ shinyServer(function(input, output) {
     
     
     
-    ### Detailed scale descriptions----
+    #### Detailed scale descriptions----
     scale_detailed_description_file <- reactive({
         switch(input$scale.type.var.single,
                "pss" = "./text_mds/scales_detailed_descriptions/pss_detailed.md",
@@ -635,7 +637,7 @@ shinyServer(function(input, output) {
     })
     
     
-    ### Descriptive table ----
+    #### Descriptive table ----
     
     descriptives_scale_selected <- reactive({ 
        
@@ -657,6 +659,8 @@ shinyServer(function(input, output) {
         # add time point
         total.summary <- total.summary %>% 
             rownames_to_column(var = "timept") %>% 
+            mutate(timept = timept %>% str_extract(".{2}$") %>% str_to_upper()) %>% 
+            #mutate(timept = timept %>% str_replace_all("\\.", " ") %>% str_to_upper()) %>% 
             remove_rownames() %>% 
             dplyr::select(-c(vars, trimmed, mad))
     
@@ -669,7 +673,7 @@ shinyServer(function(input, output) {
     
     
     
-    ### Item response distributions ----
+    #### Item response distributions ----
     
     item_response_distribution_data_selected <- reactive({
         
@@ -680,8 +684,9 @@ shinyServer(function(input, output) {
 
     })
  
+    ### Distributions ----
     
-    ### Raincloud plots ----
+    #### Raincloud plots ----
     
     output$single.scale.raincloudPlot <- renderPlotly({
     
@@ -703,11 +708,11 @@ shinyServer(function(input, output) {
                 plot_palette_generator = "viridis",
                 x_axis_label = "Scale score")
             
-            raincloud.plot
+            raincloud.plot 
             
             })
                                       
-    ### Histograms ----           
+    #### Histograms ----           
     
     output$single.scale.histogramPlot <- renderPlotly({
         
@@ -760,7 +765,7 @@ shinyServer(function(input, output) {
     })                       
                 
     
-    ### Estimated density plot ----
+    #### Estimated density plot ----
     
     output$single.scale.estimateddensityPlot <- renderPlotly({    
     
@@ -801,7 +806,7 @@ shinyServer(function(input, output) {
 })
   
     
-    ### Box plot ----
+    #### Box plot ----
     
     output$single.scale.boxPlot <- renderPlotly({    
         
@@ -850,7 +855,7 @@ shinyServer(function(input, output) {
     })
     
     
-    ### Violin plot ----
+    #### Violin plot ----
     
     output$single.scale.violinPlot <- renderPlotly({    
         
@@ -915,6 +920,353 @@ shinyServer(function(input, output) {
     })
     
       
-})    
     
+    ### Scores over time ----
+    
+    #### Corset plots ----
+    
+    # If SC scale, time point compare option only T1 vs T4, otherwise
+    # options are: T1 vs T2, T2 vs T3, T3 vs T4, T1 vs T4
+    
+    output$corset.tmpt.compare.options <- renderUI({
+        
+        if (input$scale.type.var.single == "sc") {
+            radioButtons(
+                inputId = "corset.plot.tmpts",
+                label = "Time points to compare",
+                choices = c("T1 vs T4"),
+                selected = "T1 vs T4",
+                inline = T)
+        } else {
+            radioButtons(
+                inputId = "corset.plot.tmpts",
+                label = "Time points to compare",
+                choices = c("T1 vs T2", "T2 vs T3", 
+                            "T3 vs T4", "T1 vs T4"),
+                selected = "T1 vs T2",
+                inline = T)
+        }
+    })
+    
+    # Extract time point A
+    change_timepoint_a <- reactive({
+        split_string <- paste(input$corset.plot.tmpts) |> strsplit(" ")
+        split_string[[1]][1]
+    })
+    
+    # Extract time point B
+    change_timepoint_b <- reactive({
+        split_string <- paste(input$corset.plot.tmpts) |> strsplit(" ")
+        split_string[[1]][3]
+    })
+    
+    # Extract difference score and direction of change between 2 time points 
+    data_individual_scale_change_timepoints <- reactive({
+        
+        time.a <- tolower(change_timepoint_a())
+        time.b <- tolower(change_timepoint_b())
+
+        # get the columns of interest (score at the 2 time points, change, 
+        # and direction values)
+        col.interest.a <- paste(input$scale.type.var.single, ".total.", time.a, sep = "")
+        col.interest.b <- paste(input$scale.type.var.single, ".total.", time.b, sep = "")
+        col.change <- paste(input$scale.type.var.single, ".change.", time.a, ".", time.b, sep = "")
+        col.direction <- paste(input$scale.type.var.single, ".direction.", time.a, ".", time.b, sep = "")
+        
+        vars <- c(col.interest.a, col.interest.b, 
+                  col.change, col.direction)
+        
+        corset.data <- dat.mini %>% 
+            dplyr::select(all_of(vars),
+                          ccc.id:mins.week.prac.t4)
+        
+        colnames(corset.data)[3:4] <- c("change", "direction")
+        
+        corset.data
+    })
+    
+    
+    # Get data for corset plot - count by each direction type
+    select_corset_data <- reactive({
+        
+        dat.corset.select <- data_individual_scale_change_timepoints() |>
+            dplyr::filter(!is.na(change)) |>
+            dplyr::group_by(direction) |> 
+            mutate(Count = n()) |> 
+            dplyr::ungroup() |> 
+            mutate(direction_updated = paste0(direction, ": n=", Count))
+        
+        dat.corset.select
+    })
+    
+    # Create corset plot for data of interest
+    output$single.scale.corsetPlot <- renderPlot({
+        
+        corset.plot <- select_corset_data() |>
+            gg_corset(
+                y_var1 = 1,
+                y_var2 = 2,
+                c_var = "direction_updated",
+                group = "ccc.id",
+                eyelets = T,
+                faceted = T,
+                e_type = "SE",
+                line_size = 1
+            ) +
+            
+            scale_color_manual(name = "Direction of change:", 
+                               values = c("#46327e", "#4ac16d", "#fde725")) +
+            
+            theme(
+                axis.title.x = element_text(size = 12, face = "bold"),
+                axis.title.y = element_text(size = 11, face = "bold", hjust = 0),
+                axis.text.y = element_text(size = 10, face = "bold"),
+                axis.text.x = element_text(size = 10, face = "bold"),
+                legend.position = "none",
+                plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+                strip.text.x = element_text(
+                    size = 12, face = "bold.italic"
+                ),
+                strip.text.y = element_text(
+                    size = 11, 
+                    face = "bold.italic"),
+                axis.title.y.left = element_text(
+                    hjust = .5,
+                    size = 11)
+            ) +
+            
+            labs(
+                title = str_glue("Change in {abbreviation_individual_scale_selected_explore()} scores - {change_timepoint_a()} vs {change_timepoint_b()}"),
+                x = "",
+                y = ""
+            ) +
+            
+            scale_y_continuous(
+                name = str_glue("{abbreviation_individual_scale_selected_explore()} Scores")) +
+            
+            scale_x_discrete(
+                labels = c(change_timepoint_a(), change_timepoint_b())) 
+        
+    corset.plot
+    
+    })    
+    
+    
+    # Get counts and avg by direction change type 
+    data_corset_change_counts <- reactive({
+        
+        count.change <- select_corset_data() |>
+            dplyr::group_by(direction) |>
+            summarize(Count = n(),
+                      Avg = round(mean(change, na.rm = TRUE), 3))
+        count.change
+    })
+    
+    
+    # Create histogram of change scores 
+    output$single.scale.corset.change.histoPlot <- renderPlotly({
+        
+        corset.histo.plot <- select_corset_data() |> 
+            
+            ggplot(aes(change)) +
+            
+            geom_histogram(
+                binwidth = 1,
+                color = 'black',
+                fill = histo.color
+            ) + 
+            
+            theme_bw() +
+            
+            # add vertical lines for mean of decrease and increase
+            geom_vline(
+                xintercept = data_corset_change_counts()$Avg[data_corset_change_counts()$direction == 'Decrease'][1],
+                size = 1,
+                color = mean.color,
+                linetype = 'dashed'
+            ) +
+            
+            geom_vline(
+                xintercept = data_corset_change_counts()$Avg[data_corset_change_counts()$direction == 'Increase'][1],
+                size = 1,
+                color = mean.color,
+                linetype = 'dashed'
+            ) +
+            
+            # add vertical line for 0
+            geom_vline(
+                xintercept = 0,
+                size = 1,
+                linetype = 'dashed'
+            ) +
+            labs(
+                title = str_glue("Distribution of change in {abbreviation_individual_scale_selected_explore()} scores {change_timepoint_a()} vs {change_timepoint_b()}"),
+                x = str_glue("Change in {abbreviation_individual_scale_selected_explore()} scores"),
+                y = "Frequency") 
+
+        ggplotly(corset.histo.plot)
+        
+    })
+    
+    
+    
+    #### Scores by date ---- 
+    
+    # Prepare scores by month data:
+    # Select scale of interest
+    # Round date to 1st of month & group by month
+    # Calculate count, mean, and median 
+    
+    scores_by_date_data <- reactive({
+        scores.by.month.dat <- dat.long |>
+            dplyr::filter(scale %in% input$scale.type.var.single) |>
+            mutate(
+                month.date = lubridate::floor_date(recordeddate, "month")) |>
+            dplyr::group_by(month.date) |>
+            
+            summarize(
+                avg.score = round(mean(score, na.rm = TRUE), 2),
+                median.score = median(score, na.rm = TRUE),
+                n = n()) |>
+            dplyr::filter(month.date < '2022-01-31') |>
+            dplyr::ungroup()
+    })
+    
+    
+    # Line plot of scores by date
+    output$single.scale.scores.by.date.linePlot <- renderPlotly({
+        
+        # Plot either average or median depending on user selection
+        if (input$scores.by.date.type == "average scores") {
+            
+            p <- ggplot(scores_by_date_data(),
+                        aes(x = month.date,
+                            y = avg.score)) +
+                
+                geom_point(aes(size = n)) +
+                
+                geom_line() +
+                
+                labs(x = "Month",
+                     y = str_glue("Average {abbreviation_individual_scale_selected_explore()} score"),
+                     title = str_glue("Average {abbreviation_individual_scale_selected_explore()} scores by month"))
+            
+        } else if (input$scores.by.date.type == "median scores") {
+                
+            p <- ggplot(scores_by_date_data(),
+                        aes(x = month.date,
+                            y = median.score)) +
+                
+                geom_point(aes(size = n)) +
+                
+                geom_line() +
+                
+                labs(x = "Month",
+                     y = str_glue("Median {abbreviation_individual_scale_selected_explore()} score"),
+                     title = str_glue("Median {abbreviation_individual_scale_selected_explore()} scores by month"))
+            
+        }
+        
+        p <- p + scale_x_date(date_breaks = "1 month", 
+                              labels = scales::date_format("%b"),
+                              expand = c(.1,.1)) +
+            coord_cartesian() +
+                
+            theme_minimal()
+        
+        ggplotly(p)
+
+    })
+    
+    
+    #### Scores by date by time point---- 
+    
+    # Prepare scores by month data:
+    # Select scale of interest
+    # Round date to 1st of month & group by time point & month
+    # Calculate count, mean, and median 
+    
+    scores_by_date_by_timepoint_data <- reactive({
+        scores.by.month.dat <- dat.long |>
+            dplyr::filter(scale %in% input$scale.type.var.single) |>
+            mutate(
+                month.date = lubridate::floor_date(recordeddate, "month")) |>
+            dplyr::group_by(time.pt, month.date) |>
+            
+            summarize(
+                avg.score = round(mean(score, na.rm = TRUE), 2),
+                median.score = median(score, na.rm = TRUE),
+                n = n()) |>
+            
+            # dplyr::filter(!is.na(avg.score) | !is.na(median.score))
+            
+            dplyr::filter(month.date < '2022-01-31') |>
+            
+            dplyr::ungroup()
+    })
+    
+   
+    # Line plot of scores by date by time point
+    output$single.scale.scores.by.date.by.timepoint.linePlot <- renderPlotly({
+        
+        # Plot either average or median depending on user selection
+        if (input$scores.by.date.by.timepoint.type == "average scores") {
+
+            g <- scores_by_date_by_timepoint_data() |>
+                dplyr::filter(!is.na(avg.score)) |>
+                
+                ggplot(aes(x = month.date,
+                            y = avg.score,
+                            color = time.pt)) +
+                
+                geom_point(aes(size = n)) +
+                
+                geom_line() +
+                
+                labs(x = "Month",
+                     y = str_glue("Average {abbreviation_individual_scale_selected_explore()} score"),
+                     title = str_glue("Average {abbreviation_individual_scale_selected_explore()} scores by month"))
+            
+        } else if (input$scores.by.date.by.timepoint.type == "median scores") {
+              
+            g <- scores_by_date_by_timepoint_data() |>
+                dplyr::filter(!is.na(median.score)) |>
+            
+            ggplot(aes(x = month.date,
+                       y = median.score,
+                       color = time.pt)) +
+                
+                geom_point(aes(size = n)) +
+                
+                geom_line() +
+                
+                labs(x = "Month",
+                     y = str_glue("Median {abbreviation_individual_scale_selected_explore()} score"),
+                     title = str_glue("Median {abbreviation_individual_scale_selected_explore()} scores by month"))
+            
+        }
+        
+        g <- g + scale_x_date(date_breaks = "1 month", 
+                              labels = scales::date_format("%b"),
+                              expand = c(.1,.1)) +
+            scale_color_manual(name = "Time point",
+                               values = color.palette.tmpt) +
+            coord_cartesian() +
+            
+            theme_minimal() +
+            
+            # do not include 'size' in legend
+            guides(size = "none")
+        
+            
+        ggplotly(g) |>
+            # make each legend symbol the same size
+            plotly::layout(legend = list(itemsizing = 'constant'))
+        
+    })
+    
+    
+    
+ 
+})   
     
