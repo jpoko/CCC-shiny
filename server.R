@@ -10,7 +10,7 @@ shinyServer(function(input, output) {
     
     ### Tree maps ----
     output$demographic.treemap.plots <- renderPlotly({
-        subplot(
+        plotly::subplot(
             demographic.treemaps[input$demo.treemaps.var],
             nrows = 1,
             shareX = TRUE,
@@ -42,7 +42,108 @@ shinyServer(function(input, output) {
     
     
     
+    ### Explain demographics ----
     
+    #### Demographic category descriptions----
+    demographic_description_file <- reactive({
+        switch(input$demo_category_explain,
+               "age" = "./text_mds/demographics_descriptions/age_description.md",
+               "gender" = "./text_mds/demographics_descriptions/gender_description.md",
+               "ethnicity" = "./text_mds/demographics_descriptions/ethnicity_description.md",
+               "orientation" = "./text_mds/demographics_descriptions/orientation_description.md",
+               "education" = "./text_mds/demographics_descriptions/education_description.md",
+               "income" = "./text_mds/demographics_descriptions/income_description.md")
+    })
+    
+    output$demographic.category.description <- renderUI({
+        includeMarkdown(demographic_description_file())
+    })
+    
+    
+    
+    #### Show sankey diagram tab selectively ----
+    
+    # show 'visualization' tab (that has sankey diagram) if select category
+    # has a sankey diagram (i.e., gender, ethnicity, orientation)
+    
+    observe({
+        req(input$demo_category_explain)
+        
+        if (input$demo_category_explain %in% c("gender", "ethnicity", "orientation")) {
+            showTab(inputId = "explain.demo.tabs", target = "sankeyTab")
+        } else {
+            hideTab(inputId = "explain.demo.tabs", target = "sankeyTab")
+        }
+    })
+    
+    
+    
+    #### Sankey plots ----
+   
+    output$sankey.diagram.stage <- renderUI({
+
+        if (input$demo_category_explain %in% c("ethnicity", "gender", "orientation")) {
+            radioButtons(
+                inputId = "sankey.diagram.stage",
+                label = "Stage",
+                choices = c("applied", "screened",
+                            "admitted", "consented",
+                            "started"),
+                selected = "applied")
+        } else {
+            br()
+        }
+    })
+    
+    
+    
+    
+    output$sankey.diagram.demographic.category <- networkD3::renderSankeyNetwork({
+      
+        req(input$demo_category_explain)
+        
+        if (input$demo_category_explain == "ethnicity") {
+            get_sankey_data <- nested_ethnicity_levels
+        } else if (input$demo_category_explain == "gender") {
+            get_sankey_data <- nested_gender_levels
+        } else if (input$demo_category_explain == "orientation") {
+            get_sankey_data <- nested_orientation_levels
+        } 
+            
+        
+        # get index of which stage to examine
+        index_data <- which(sapply(get_sankey_data,
+                                   function(x) x$name == input$sankey.diagram.stage))
+        
+        # get that data (selected demo category and selected stage)
+        sankey_data <- get_sankey_data[[index_data]][["data"]]
+        
+        # rename columns
+        colnames(sankey_data) <- c("source", "target", "value")
+        
+        nodes <- data.frame(
+            name = c(
+                as.character(sankey_data$source), 
+                as.character(sankey_data$target)) %>% 
+                unique())
+        
+        sankey_data$IDsource = match(sankey_data$source, nodes$name) - 1
+        
+        sankey_data$IDtarget = match(sankey_data$target, nodes$name) - 1
+        
+        networkD3::sankeyNetwork(Links = sankey_data,
+                                 Nodes = nodes,
+                                 Source = "IDsource",
+                                 Target = "IDtarget",
+                                 Value = "value",
+                                 NodeID = "name",
+                                 units = "case(s)",
+                                 fontSize = 14,
+                                 nodeWidth = 30)
+    })
+    
+    
+ 
     ## Well-being plots & info ----
     
     
@@ -322,7 +423,7 @@ shinyServer(function(input, output) {
     
     # Layout main scatter plot with marginal distribution plots
     output$scatPlot <- renderPlotly({
-        marg_plot <- subplot(marginal.x.plot(), 
+        marg_plot <- plotly::subplot(marginal.x.plot(), 
                              plotly_empty(), 
                              marginal.scatter.plot(), 
                              marginal.y.plot(),
@@ -649,7 +750,7 @@ shinyServer(function(input, output) {
             as.data.frame()
     
         # summary stats
-        total.summary <- as.data.frame(describe(dat.mini[index_individual_scale_selected_explore()]))
+        total.summary <- as.data.frame(psych::describe(dat.mini[index_individual_scale_selected_explore()]))
     
         # add num NAs and round numbers
         total.summary <- total.summary %>% 
@@ -724,16 +825,6 @@ shinyServer(function(input, output) {
             geom_histogram(binwidth = input$histo.bin.size,
                            color = 'white',
                            fill = 'black') +
-            
-            # # add mean/median lines
-            # add.mean.line.histo +
-            # add.median.line.histo +
-            # 
-            # # add min/max lines
-            # my_add.min.max.lines.vert(
-            #     min.score = min.score,
-            #     max.score = max.score
-            # ) +
             
             # x- and y-axis labels
             labs(
@@ -1057,7 +1148,7 @@ shinyServer(function(input, output) {
         
         count.change <- select_corset_data() |>
             dplyr::group_by(direction) |>
-            summarize(Count = n(),
+            dplyr::summarize(Count = n(),
                       Avg = round(mean(change, na.rm = TRUE), 3))
         count.change
     })
@@ -1124,7 +1215,7 @@ shinyServer(function(input, output) {
                 month.date = lubridate::floor_date(recordeddate, "month")) |>
             dplyr::group_by(month.date) |>
             
-            summarize(
+            dplyr::summarize(
                 avg.score = round(mean(score, na.rm = TRUE), 2),
                 median.score = median(score, na.rm = TRUE),
                 n = n()) |>
@@ -1133,50 +1224,106 @@ shinyServer(function(input, output) {
     })
     
     
-    # Line plot of scores by date
-    output$single.scale.scores.by.date.linePlot <- renderPlotly({
+  
+    # Text for plot title and caption
+
+    score_by_date_title <- reactive({
         
-        # Plot either average or median depending on user selection
-        if (input$scores.by.date.type == "average scores") {
+        if (input$scores.by.date.type == "avg.score") {
+            score_type_text <- "average"
+        } else if (input$scores.by.date.type == "median.score") {
+            score_type_text <- "median"
+        }
+        
+        score_type_title_text <- str_glue("Line plot of {score_type_text} {abbreviation_individual_scale_selected_explore()} scores by month")
+       
+        return(score_type_title_text)
+        
+    })
+    
+    score_by_date_caption <- reactive({
+        
+        if (input$covid_cases_deaths == "weekly.cases") {
+            covid_type_text <- "cases"
+        } else if (input$covid_cases_deaths == "weekly.deaths") {
+            covid_type_text <- "deaths"
+        }
+        
+        covid_type_caption_text <- str_glue("Weekly number of U.S. Covid-19 {covid_type_text} overlaid in red. Value is reflected on the right y-axis.")
+        
+        return(covid_type_caption_text)
+    })
+        
+    
+    # Line plot (highcharter)
+    
+    output$hc_single_scale_date_linePlot <- renderHighchart({
+        
+       hc <- highchart(type = "chart") |> 
+           
+           # set up axes
+           hc_yAxis_multiples(
+               list(title = list(text = input$scores.by.date.type)),
+               list(title = list(text = input$covid_cases_deaths),
+                    labels = list(style = list(color = "red")),
+                    showLastLabel = FALSE, 
+                    opposite = TRUE)) %>% 
+           
+            hc_xAxis(type = "datetime") %>% 
+           
+           # add line for scores
+           hc_add_series(name = "Score",
+                         data = scores_by_date_data(),
+                         color = "black",
+                         id = "score",
+                         'line',
+                         hcaes(x = month.date,
+                               y = !!input$scores.by.date.type),
+                         tooltip = list(
+                             pointFormat = "Score={point.y}, n={point.n}")) %>% 
+           
+           # add circles, sized for number of people
+           hc_add_series(name = input$scores.by.date.type,
+                         data = scores_by_date_data(),
+                         'scatter',
+                         linkedTo = "score",
+                         color = 'black',
+                         hcaes(x = month.date,
+                               y = !!input$scores.by.date.type,
+                               size = n),
+                          tooltip = list(
+                              pointFormat = "{point.x:%b %Y}<br>Score={point.y}<br>n={point.n}")) %>%
+           
+           hc_title(text = score_by_date_title()) %>% 
+           
+           # add tooltip formatting
+           hc_tooltip(crosshairs = TRUE)
+        
+        
+       
+       # add weekly covid deaths/cases if selected
+        if (input$covid_cases_deaths != "none") {
             
-            p <- ggplot(scores_by_date_data(),
-                        aes(x = month.date,
-                            y = avg.score)) +
+            hc <- hc %>%
+                hc_add_series(name = input$covid_cases_deaths,
+                              data = covid.cases.deaths.dat, 
+                              "spline", 
+                              yAxis = 1,
+                              color = "red",
+                              hcaes(x = date, y = !!input$covid_cases_deaths)) %>% 
+                hc_caption(text = score_by_date_caption()) %>% 
                 
-                geom_point(aes(size = n)) +
-                
-                geom_line() +
-                
-                labs(x = "Month",
-                     y = str_glue("Average {abbreviation_individual_scale_selected_explore()} score"),
-                     title = str_glue("Average {abbreviation_individual_scale_selected_explore()} scores by month"))
-            
-        } else if (input$scores.by.date.type == "median scores") {
-                
-            p <- ggplot(scores_by_date_data(),
-                        aes(x = month.date,
-                            y = median.score)) +
-                
-                geom_point(aes(size = n)) +
-                
-                geom_line() +
-                
-                labs(x = "Month",
-                     y = str_glue("Median {abbreviation_individual_scale_selected_explore()} score"),
-                     title = str_glue("Median {abbreviation_individual_scale_selected_explore()} scores by month"))
+                hc_credits(enabled = TRUE,
+                           text = "Covid-19 data downloaded from CDC COVID Data Tracker", 
+                           href = "https://covid.cdc.gov/covid-data-tracker/#trends_weeklycases_select_00")
             
         }
         
-        p <- p + scale_x_date(date_breaks = "1 month", 
-                              labels = scales::date_format("%b"),
-                              expand = c(.1,.1)) +
-            coord_cartesian() +
-                
-            theme_minimal()
-        
-        ggplotly(p)
-
+        hc
+    
     })
+    
+    
     
     
     #### Scores by date by time point---- 
@@ -1193,7 +1340,7 @@ shinyServer(function(input, output) {
                 month.date = lubridate::floor_date(recordeddate, "month")) |>
             dplyr::group_by(time.pt, month.date) |>
             
-            summarize(
+            dplyr::summarize(
                 avg.score = round(mean(score, na.rm = TRUE), 2),
                 median.score = median(score, na.rm = TRUE),
                 n = n()) |>
@@ -1202,71 +1349,120 @@ shinyServer(function(input, output) {
             
             dplyr::filter(month.date < '2022-01-31') |>
             
+            mutate(color_group = case_when(
+                time.pt == "T1" ~ "#fde725",
+                time.pt == "T2" ~ "#35b779",
+                time.pt == "T3" ~ "#316883",
+                time.pt == "T4" ~ "#472c7a"
+                    ),
+                tmpt = time.pt) |>
+            
             dplyr::ungroup()
     })
-    
-   
-    # Line plot of scores by date by time point
-    output$single.scale.scores.by.date.by.timepoint.linePlot <- renderPlotly({
-        
-        # Plot either average or median depending on user selection
-        if (input$scores.by.date.by.timepoint.type == "average scores") {
 
-            g <- scores_by_date_by_timepoint_data() |>
-                dplyr::filter(!is.na(avg.score)) |>
-                
-                ggplot(aes(x = month.date,
-                            y = avg.score,
-                            color = time.pt)) +
-                
-                geom_point(aes(size = n)) +
-                
-                geom_line() +
-                
-                labs(x = "Month",
-                     y = str_glue("Average {abbreviation_individual_scale_selected_explore()} score"),
-                     title = str_glue("Average {abbreviation_individual_scale_selected_explore()} scores by month"))
-            
-        } else if (input$scores.by.date.by.timepoint.type == "median scores") {
-              
-            g <- scores_by_date_by_timepoint_data() |>
-                dplyr::filter(!is.na(median.score)) |>
-            
-            ggplot(aes(x = month.date,
-                       y = median.score,
-                       color = time.pt)) +
-                
-                geom_point(aes(size = n)) +
-                
-                geom_line() +
-                
-                labs(x = "Month",
-                     y = str_glue("Median {abbreviation_individual_scale_selected_explore()} score"),
-                     title = str_glue("Median {abbreviation_individual_scale_selected_explore()} scores by month"))
-            
+    
+    # Text for plot title and caption
+    
+    score_by_date_by_timepoint_title <- reactive({
+        
+        if (input$scores.by.date.by.timepoint.type == "avg.score") {
+            score_type_text <- "average"
+        } else if (input$scores.by.date.by.timepoint.type == "median.score") {
+            score_type_text <- "median"
         }
         
-        g <- g + scale_x_date(date_breaks = "1 month", 
-                              labels = scales::date_format("%b"),
-                              expand = c(.1,.1)) +
-            scale_color_manual(name = "Time point",
-                               values = color.palette.tmpt) +
-            coord_cartesian() +
-            
-            theme_minimal() +
-            
-            # do not include 'size' in legend
-            guides(size = "none")
+        score_type_title_text <- str_glue("Line plot of {score_type_text} {abbreviation_individual_scale_selected_explore()} scores by month by time point")
         
-            
-        ggplotly(g) |>
-            # make each legend symbol the same size
-            plotly::layout(legend = list(itemsizing = 'constant'))
+        return(score_type_title_text)
         
+    })
+    
+    score_by_date_by_timepoint_caption <- reactive({
+        
+        if (input$covid_cases_deaths_tmpt == "weekly.cases") {
+            covid_type_text <- "cases"
+        } else if (input$covid_cases_deaths_tmpt == "weekly.deaths") {
+            covid_type_text <- "deaths"
+        }
+        
+        covid_type_caption_text <- str_glue("Weekly number of U.S. Covid-19 {covid_type_text} overlaid in red. Value is reflected on the right y-axis.")
+        
+        return(covid_type_caption_text)
+    })
+    
+    
+    # Line plot (highcharter)
+    
+    output$hc_single_scale_date_tmpt_linePlot <- renderHighchart({
+        
+        hc <- highchart(type = "chart") |> 
+            
+            # set up axes
+            hc_yAxis_multiples(
+                list(title = list(text = input$scores.by.date.by.timepoint.type)),
+                list(title = list(text = input$covid_cases_deaths_tmpt),
+                     labels = list(style = list(color = "red")),
+                     showLastLabel = FALSE, 
+                     opposite = TRUE)) %>% 
+            
+            hc_xAxis(type = "datetime") %>% 
+            
+            # add line for scores
+            hc_add_series(
+                          data = scores_by_date_by_timepoint_data(),
+                          color = color.palette.tmpt,
+                          id = "score",
+                          'line',
+                          hcaes(x = month.date,
+                                y = !!input$scores.by.date.by.timepoint.type,
+                                group = time.pt),
+                          tooltip = list(
+                              pointFormat = "Score={point.y}, n={point.n}<br>Time point: {point.tmpt}")) %>% 
+            
+            # add circles, sized for number of people
+            hc_add_series(name = input$scores.by.date.by.timepoint.type,
+                          data = scores_by_date_by_timepoint_data(),
+                          'scatter',
+                          linkedTo = "score",
+                          hcaes(x = month.date,
+                                y = !!input$scores.by.date.by.timepoint.type,
+                                color = color_group,
+                                size = n),
+                          tooltip = list(
+                              pointFormat = "{point.y}, n={point.n}<br>{point.x:%b %Y}<br>Time point: {point.tmpt}")) %>%
+            
+            hc_title(text = score_by_date_by_timepoint_title()) %>% 
+            
+            # add tooltip formatting
+            hc_tooltip(crosshairs = TRUE)
+        
+        
+        
+        # add weekly covid deaths/cases if selected
+        if (input$covid_cases_deaths_tmpt != "none") {
+            
+            hc <- hc %>%
+                hc_add_series(name = input$covid_cases_deaths_tmpt,
+                              data = covid.cases.deaths.dat, 
+                              "spline", 
+                              yAxis = 1,
+                              color = "red",
+                              hcaes(x = date, y = !!input$covid_cases_deaths_tmpt)) %>% 
+                hc_caption(text = score_by_date_by_timepoint_caption()) %>% 
+                
+                hc_credits(enabled = TRUE,
+                    text = "Covid-19 data downloaded from CDC COVID Data Tracker", 
+                           href = "https://covid.cdc.gov/covid-data-tracker/#trends_weeklycases_select_00")
+        }
+        
+        hc
+
     })
     
     
     
  
 })   
+    
+
     

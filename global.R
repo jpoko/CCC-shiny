@@ -12,6 +12,7 @@ library(sjlabelled)   # add label to variable names
 library(ggeasy)       # add label names to ggplot
 
 library(plotly)       # interactive plots
+library(highcharter)  # interactive plots
 library(viridis)      # color palette
 library(ggforce)      # sina plots
 
@@ -19,8 +20,10 @@ library(psych)        # correlations with p values
 library(ggcorrplot)   # correlation matrices
 library(corrplot)     # view correlation matrices as heatmap
 library(ppcor)        # partial correlations
+library(Hmisc)
 
 library(ggcorset)     # corset plots
+library(networkD3)    # sankey diagrams
 
 library(shinyhelper)  # helper pop-ups
 library(fontawesome)  # icons
@@ -36,6 +39,9 @@ zipcode.dat <- readRDS("./data/zipcode_data.rds")
 dat.mini <- readRDS("./data/app_mini_data.rds")
 scale.correlations.heatmap.dat <- load("./data/app_btwScaleCorrelations_data.RData")
 meditation.correlations.heatmap.dat <- load("./data/app_btwMeditationCorrelations_data.RData")
+covid.cases.deaths.dat <- readRDS("./data/app_covid_cases_deaths.rds")
+
+demo.categories.explain.dat <- load("./data/app_demographicCategoriesFlow_data.RData")
 
 # Add flag for when no demographic category is selected (for scatter plot), all
 # individuals are shown
@@ -52,10 +58,15 @@ dat.long <- dat.long |>
 #               demographic.var = "gender",
 #               corr.matrix.sig.p.val = 0.05,
 #               corr.matrix.type = "meditation variables",
-#               scale.type.var.single = "stai"
+#               scale.type.var.single = "stai",
+#               demo_category_explain = "ethnicity",
+#               scores.by.date.type = "average scores",
+#               covid.cases.deaths = "cases"
 # )
 
 # PREP DATA ----
+
+
 
 ## TREEMAPS ----
 

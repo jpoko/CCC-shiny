@@ -38,8 +38,7 @@ shinyUI(fluidPage(
                 ),
                 br(),br()
             )
-        ),
-        # close About tab
+        ), # close About tab
         
 
         ## Demographics tab ----
@@ -49,12 +48,12 @@ shinyUI(fluidPage(
             "Demographics",
             
             tabsetPanel(
-                type = "tabs",
+                type = "pills",
                 
                 
                 ### Interactive map subtab ----
                 tabPanel(
-                    "Map",
+                    HTML("Location<br/>of participants<br/>(map)"),
                     
                     br(),
                     leafletOutput("zipcodeMap") |>
@@ -69,10 +68,10 @@ shinyUI(fluidPage(
                 
                 
                 
-                ### General demographics subtab ----
+                ### Participant demographics subtab ----
                 tabPanel(
-                    "General demographics",
-                    
+                    HTML("Participant<br/>demographics"),
+
                     h3("General demographic information about participants"),
                     br(),
                     
@@ -108,8 +107,84 @@ shinyUI(fluidPage(
                             ),
                         br()
                     )
-                )  # close General Demographics subtab
-            ) # close all Demographics subtabs
+                ),  # close Participant Demographics subtab
+                
+                ### Explain demographics subtab ----
+                tabPanel(
+                    HTML("Explanation<br/>of demographic<br/>variables"),
+                    
+                    h3("Information about demographic data"),
+                    
+                    includeMarkdown("./text_mds/demographics_descriptions/main_description_overview.md"),
+                   
+                    br(),
+                    
+                    #### Sidebar ---- 
+                    # Demographic options to visualize
+                    sidebarPanel(
+                        radioButtons(
+                            inputId = "demo_category_explain",
+                            label = "Demographic variable",
+                            choices = c("age", "gender", "ethnicity",
+                                        "orientation", "education",
+                                        "income")
+                        )
+                    ),
+                    
+                    #### Main panel ---- 
+                    # Text explaining demographic category
+                    mainPanel(
+                        
+                        tabsetPanel(
+                            id = "explain.demo.tabs",
+                            type = "pills",
+                            
+                            tabPanel(
+                                "Description",
+                                value = "descriptionTab",
+                                uiOutput("demographic.category.description")
+                            ),
+                            tabPanel(
+                                "Visualization",
+                                value = "sankeyTab",
+                                h4("Sankey diagrams"),
+                                h5("Sankey diagrams showing the original responses
+                                   from the participants (left) and the categories
+                                   that we have used (right). The diagram is
+                                   interactive - hover over parts of the diagram
+                                   for more information."),
+                                
+                                h5("You can select the 'Stage' to see
+                                   participant responses from different stages
+                                   of recruitment, funneled through from applied
+                                   to participate in the study to actually starting
+                                   in the study. Click on the help icon for
+                                   more detailed information on each of the
+                                   participant recruitment stages"),
+                                uiOutput("sankey.diagram.stage") |>
+                                    shinyhelper::helper(
+                                        icon = "circle-question",
+                                        colour = info.icon.color,
+                                        type = "markdown",
+                                        content = "demo_explain_sankey_stage"
+                                    ),
+                                sankeyNetworkOutput("sankey.diagram.demographic.category",
+                                                    height = "1200px") |>
+                                    shinyhelper::helper(
+                                        icon = "circle-question",
+                                        colour = info.icon.color,
+                                        type = "markdown",
+                                        content = "demo_explain_sankey_general_info"
+                                    )
+                            )
+                        )
+                        
+                    ) # close Explain demographics main panel
+  
+                ) # close Explain demographics subtab
+                
+                
+            ), # close all Demographics subtabs
         ), # close Demographics tab
         
         
@@ -312,20 +387,34 @@ shinyUI(fluidPage(
             conditionalPanel(
                 condition = "input.single_scale_view == 'scores_by_date'",
                 h4("Scores by date"),
-                h5("Line plot of scores by month. Size of dot indicates the number of people with scores in that month contributing to the average/median score plotted."),
+                h5("Line plot of scores by month. Size of circle indicates the number of people with scores in that month contributing to the average/median score plotted. Option to overlay weekly U.S. Covid-19 cases or deaths."),
                 
                 radioButtons(
                     inputId = "scores.by.date.type",
                     label = "What should be plotted?",
-                    choices = c("average scores", "median scores"),
-                    selected = "average scores"),
-                plotlyOutput("single.scale.scores.by.date.linePlot") |>
+                    choices = c(
+                        "average scores" = "avg.score",
+                        "median scores" = "median.score"),
+                    selected = "avg.score"),
+                
+                radioButtons(
+                    inputId = "covid_cases_deaths",
+                    label = "Add average weekly Covid-19 cases or deaths?",
+                    choices = c(
+                        "none" = "none", 
+                        "cases" = "weekly.cases", 
+                        "deaths" = "weekly.deaths"),
+                    selected = "none"
+                ),
+                
+                highchartOutput("hc_single_scale_date_linePlot", height = "500px") |>
                     helper(
                         icon = "circle-question",
                         colour = info.icon.color,
                         type = "markdown",
                         content = "single_scale_scores_by_date_info"),
-                br(),  
+                
+                br(), br(),  
             ),
             
             
@@ -343,16 +432,29 @@ shinyUI(fluidPage(
                radioButtons(
                    inputId = "scores.by.date.by.timepoint.type",
                    label = "What should be plotted?",
-                   choices = c("average scores", "median scores"),
-                   selected = "average scores"),
+                   choices = c(
+                       "average scores" = "avg.score",
+                       "median scores" = "median.score"),
+                   selected = "avg.score"),
                
-               plotlyOutput("single.scale.scores.by.date.by.timepoint.linePlot") |>
+               radioButtons(
+                   inputId = "covid_cases_deaths_tmpt",
+                   label = "Add average weekly Covid-19 cases or deaths?",
+                   choices = c(
+                       "none" = "none", 
+                       "cases" = "weekly.cases", 
+                       "deaths" = "weekly.deaths"),
+                   selected = "none"
+               ),
+               
+               highchartOutput("hc_single_scale_date_tmpt_linePlot", height = "500px") |>
                    helper(
                        icon = "circle-question",
                        colour = info.icon.color,
                        type = "markdown",
                        content = "single_scale_scores_by_date_by_timepoint_info"),
-               br()
+               
+               br(), br()
             ),
             
             #### Missing all items ----
